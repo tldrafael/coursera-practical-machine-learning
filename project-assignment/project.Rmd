@@ -213,6 +213,13 @@ train.tidy = predict(preObj, train.tidy)
 
 </br>
 
+The tidy train set has a reduced dimension:
+```{r}
+dim(train.tidy)
+```
+
+</br>
+
 #### **>> DATA SPLITTING**
 
 Prior to any modelling, i split the current `train.tidy` dataset into a training and a validation (CV) set, the CV set allows to verify the performance of multiple models and choose the best one.
