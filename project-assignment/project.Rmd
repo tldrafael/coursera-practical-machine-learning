@@ -213,7 +213,7 @@ train.tidy = predict(preObj, train.tidy)
 
 </br>
 
-The tidy train set has a reduced dimension:
+The tidy train set at the end of the cleaning process has a reduced dimension:
 ```{r}
 dim(train.tidy)
 ```

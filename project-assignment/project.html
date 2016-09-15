@@ -375,6 +375,10 @@ train.tidy &lt;- cbind(train.tidy[, -outcome][, -highCorrFeat], &quot;classe&quo
 <pre class="r"><code>preObj &lt;- preProcess(train.tidy, method=&quot;knnImpute&quot;)
 train.tidy = predict(preObj, train.tidy)</code></pre>
 <p></br></p>
+<p>The tidy train set at the end of the cleaning process has a reduced dimension:</p>
+<pre class="r"><code>dim(train.tidy)</code></pre>
+<pre><code>## [1] 19622    46</code></pre>
+<p></br></p>
 </div>
 <div id="data-splitting" class="section level4">
 <h4><strong>&gt;&gt; DATA SPLITTING</strong></h4>
