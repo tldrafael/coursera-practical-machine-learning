@@ -1,0 +1,344 @@
+---
+title: "PROJECT - PRACTICAL MACHINE LEARNING COURSE"
+author: "Rafael S Toledo"
+date: "August 26, 2016"
+output: html_document
+---
+</br>  
+
+## **INTRODUCTION**  
+
+</br>
+
+#### **>> BACKGROUND**    
+
+Using devices such as *Jawbone Up*, *Nike FuelBand* and *Fitbit* it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because the are tech geeks. One thing that people regularly do is quantify how *much* of a particular acitvity they do, but they rarely quantify *how well they do it*. 
+
+In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here:
+<http://groupware.les.inf.puc-rio.br/har> (see the section on the Weight Lifting Exercise Dataset).
+
+The data has 5 classes to classify, each one represents a manner of doing the exercise, one is the correct way and the other four are wrong ways:
+
+* A: exactly according to the specification.
+* B: throwing the elbows to the front.
+* C: lifting the dumbbell only halfway.
+* D: lowering the dumbbel only halfway.
+* E: throwing the hips to the front.    
+
+
+</br>
+
+#### **>> DATA SOURCE**   
+
+This work was first developed in the paper:  
+
+> Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+The research group generously offers the training and testing data respectivally in the following links: 
+
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv>
+
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv>
+
+</br>
+
+#### **>> GOALS OF THE PROJECT**
+
+Predict the manner in which they did the exercise, this the "classe" variable in the training set
+
+* Create a report describing how the model was built.
+* How i used the cross validation.
+* What i think the expected out-of-sample error is.
+* Why i made the choices i did.
+* Use my prediction model to predict 20 different test cases.
+
+</br>
+
+## **DATA PREPARATION**
+
+</br>
+
+#### **>> SETTING THE REQUIRED ENVIRONMENT**
+
+```{r, message=F}
+
+# Set working directory
+setwd(Sys.getenv("WDIR_PRACTICALMACHINELEARNING"))
+
+# Load required packages
+if ( !require(caret)){
+  install.packages("caret", dependencies = T)
+  require(caret)
+}
+
+set.seed(123456)
+
+```
+
+</br>
+
+#### **>> GETTING DATA**
+
+
+```{r}
+
+# URLs to download train and test files
+train.url = 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv'
+test.url = 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv'
+
+# Create data directory if it not exists
+if (!file.exists("./data")) {
+  dir.create("./data")
+}
+
+# Set the filenames to the data sources
+train.file = "./data/pml-training.csv"
+test.file = "./data/pml-testing.csv"
+
+# Download data
+if (!file.exists(train.file)) {
+  download.file(train.url, destfile=train.file)
+}
+
+if (!file.exists(test.file)) {
+  download.file(test.url, destfile=test.file)
+}  
+
+```
+</br>
+
+#### **>> LOAD DATA**
+
+```{r}
+# Load the data into two data frames
+train = read.csv(file=train.file, stringsAsFactors = F, na.strings=c("NA", "NULL",'', ' '))
+test = read.csv(file=test.file, stringsAsFactors = F, na.strings=c("NA", "NULL",'', ' '))
+
+```
+
+Examining the dataset dimensions.
+
+```{r}
+dim(train)
+
+```
+
+```{r, echo=T}
+dim(test)
+
+```
+
+The trainset contains 19622 rows and 160 variables, and the testset contains 20 rows and 160 variables. Now, let's do some exploration in the dataset, checking the variables type and its first values.
+
+```{r, echo=T}
+str(train)
+
+```
+
+The seven first columns represent problem IDs and timestamps, the outcome target is named as **classe**. Apparently there are many variables with predominance of missing values, *NA*, this condition will be verified later. 
+
+</br> 
+
+## **DATA CLEANING**
+
+</br>
+
+#### **>> REMOVE IDs VARIABLES**
+
+The first procedure is to remove the first seven columns, because they only represent IDs and timestamps, and the relation with the **classe** outcome is no time-dependent.
+
+```{r}
+train.tidy = train[, -(1:7)]
+
+```
+
+</br>
+
+#### **>> REMOVE VARIABLES WITH TOO MANY MISSING VALUES**
+
+Secondly, i remove variables that contains a distribution of more or equal than 50% of missing values.
+
+```{r, echo=T}
+NA.predominance = colSums(is.na(train.tidy))/nrow(train.tidy)
+NA.predominance = (NA.predominance >= 0.5)
+
+train.tidy = train.tidy[, !(NA.predominance)]
+```
+
+
+</br>
+
+#### **>> REMOVE VARIABLES OF LOW VARIANCE**
+
+Third procedure, i remove variables with *Near Zero Variance*, they mostly has few changes into the population, therefore low influence in the outcome.
+
+```{r}
+nzv = nearZeroVar(train.tidy)
+
+# print the number of chosen variables as near zero variance
+print(length(nzv))
+```
+
+As shown, no column variable has near zero variance, so there is no cut-off here.
+
+</br>
+
+#### **>> REMOVE HIGH CORRELATED VARIABLES**
+
+The fourth procedure adopted is to remove high correlated variables, it is useful to compress data and avoid overfitting.
+
+```{r}
+outcome = which(names(train.tidy)=="classe")
+correlations = abs(cor(train.tidy[, -outcome]))
+highCorrFeat = findCorrelation(correlations, .90)
+
+# print the features high correlated with others features in the dataset
+print(names(train.tidy[, -outcome])[highCorrFeat])
+
+# exclude the features above
+train.tidy <- cbind(train.tidy[, -outcome][, -highCorrFeat], "classe"=train.tidy$classe)
+```
+
+</br>
+
+#### **>> FILL MISSING VALUES**
+
+For last, i standardize the NAs values occurred in some variables with the mean values of these variables. I use the *knnimput* method, it also scales and centers the data.
+
+```{r}
+preObj <- preProcess(train.tidy, method="knnImpute")
+train.tidy = predict(preObj, train.tidy)
+
+```
+
+</br>
+
+#### **>> DATA SPLITTING**
+
+Prior to any modelling, i split the current `train.tidy` dataset into a training and a validation (CV) set, the CV set allows to verify the performance of multiple models and choose the best one.
+
+```{r, echo=T}
+inTrain = createDataPartition(y=train.tidy$classe, p=.75, list=F)
+training = train.tidy[inTrain,]
+validation = train.tidy[-inTrain,]
+
+``` 
+
+</br>
+
+
+## BUILDING THE MODELS
+
+I am going to try tree modelling techniques: `Random Forest`, `Gradient Boosting Machine` and `K-Nearest Neighbors`. From these, i choose the best model, testing them in the validation set. I also save the models after the training phase.
+
+```{r}
+# Create the models storage directory
+if (!file.exists("./models")) {
+  dir.create("./models")
+}
+```
+
+</br>
+
+#### **>> RANDOM FOREST**
+
+I apply the Random Forest to model the data, the same method was used by the reseach group data owner, and as they announced the choice is `because of the characteristic noise in the sensor data`. Random Forest is good for fit non-linear data and avoid overfitting.
+
+```{r, message=F}
+rf.file = "./models/rf.fit.rda"
+if (!file.exists(rf.file)){
+  rf.fit = train(classe ~ ., method="rf", data=training, trControl=trainControl(method="oob"), ntree=100, importance=T)
+  save(rf.fit, file=rf.file)
+}else{
+  load(rf.file)
+}
+
+rf.validation = predict(rf.fit, newdata=validation)
+rf.acc = confusionMatrix(validation$classe, rf.validation)$overall[1]
+``` 
+
+
+It is possible check the most important features discovered by Random Forest method as shown bellow.
+```{r}
+par(ps=7)
+varImpPlot(rf.fit$finalModel)
+```
+
+</br>
+
+#### **>> GRADIENT BOOSTING MACHINE**
+
+The GBM method tries to find an optimal linear combination of trees for a given data. This method usually gives a better accuracy with less trees than Random Forest, nevertheless they're more sucescitable to overfit  the data.
+```{r, message=F}
+gradbm.file = "./models/gradbm.fit.rda"
+if (!file.exists(gradbm.file)){
+  gradbm.fit = train(classe ~ ., method="gbm", data=training)
+  save(gradbm.fit, file=gradbm.file)
+}else{
+  load(gradbm.file)
+}
+
+gradbm.validation = predict(gradbm.fit, newdata=validation)
+gradbm.acc = confusionMatrix(validation$classe, gradbm.validation)$overall[1]
+``` 
+
+</br>
+
+#### **>> K-NEAREST MACHINE**
+
+This method computes conditional probability of a class *j* for given data based on the average of the *k* nearest neighbors of the same class. Higher *k* increases the variance of the estimated function, hence the chance of overfitting the data. For this case, i use the default *k* value of 5 as documented in the Caret package.
+
+```{r, message=F}
+knn.file = "./models/knn.fit.rda"
+
+if (!file.exists(knn.file)){
+  knn.fit = train(classe ~ ., method="gbm", data=training)
+  save(knn.fit, file=knn.file)
+}else{
+    load(knn.file)
+}
+
+knn.validation = predict(knn.fit, newdata=validation)
+knn.acc = confusionMatrix(validation$classe, knn.validation)$overall[1]
+```
+
+</br>
+
+## **CHOOSING THE BEST MODEL**
+
+```{r}
+accuracies = data.frame(rf.acc, gradbm.acc, knn.acc)
+print(accuracies)
+```
+
+All the tree models present a good perfomance, and could be choosen as the final model, however the Random Forest one got the best accuracy in the validation set with almost **99.5%**, hence it will be the final model.
+
+```{r, eval=T}
+finalModel = rf.fit$finalModel
+```
+
+</br>
+
+#### **>> OUT-OF-SAMPLE ERROR**
+
+The out-of-sample error is:
+```{r, eval=T}
+oos.error = 1-accuracies$rf.acc[1]
+names(oos.error) <- "out-of-sample error"
+print(oos.error)
+```
+
+</br>
+
+## **PREDICTING TEST CASES**
+
+To predict the test case, i exclude the unnecessary columns, and also preprocess the data - center and scale - as did with the `train.tidy`.
+
+```{r, eval=T}
+test.tidy <- test[, which(names(test) %in% names(train.tidy))]
+preObj <- preProcess(test.tidy, method=c("center", "scale"))
+test.tidy <- predict(preObj, test.tidy)
+
+test.predictions = predict(finalModel, newdata=test.tidy)
+print(test.predictions)
+```
