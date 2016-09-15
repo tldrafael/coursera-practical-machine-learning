@@ -201,22 +201,14 @@ train.tidy <- cbind(train.tidy[, -outcome][, -highCorrFeat], "classe"=train.tidy
 
 </br>
 
-#### **>> FILL MISSING VALUES**
-
-For last, i standardize the NAs values occurred in some variables with the mean values of these variables. I use the *knnimput* method, it also scales and centers the data.
-
-```{r}
-preObj <- preProcess(train.tidy, method="knnImpute")
-train.tidy = predict(preObj, train.tidy)
-
-```
-
-</br>
+#### **>> THE NEW DATA SET**
 
 The tidy train set at the end of the cleaning process has a reduced dimension:
 ```{r}
 dim(train.tidy)
 ```
+
+Now it remains only 46 of the initial 160 variable columns.
 
 </br>
 
@@ -343,8 +335,8 @@ To predict the test case, i exclude the unnecessary columns, and also preprocess
 
 ```{r, eval=T}
 test.tidy <- test[, which(names(test) %in% names(train.tidy))]
-preObj <- preProcess(test.tidy, method=c("center", "scale"))
-test.tidy <- predict(preObj, test.tidy)
+#preObj <- preProcess(test.tidy, method=c("center", "scale"))
+#test.tidy <- predict(preObj, test.tidy)
 
 test.predictions = predict(finalModel, newdata=test.tidy)
 print(test.predictions)
